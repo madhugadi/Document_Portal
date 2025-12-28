@@ -28,5 +28,3 @@ git commit -m "<write your commit message>"
 # Push to remote (after adding remote origin)
 git push
 
-# Cloning the repository
-git clone https://github.com/sunnysavita10/document_portal.git
