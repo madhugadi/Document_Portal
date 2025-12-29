@@ -11,6 +11,16 @@ langchain-google-genai
 python-dotenv
 ipykernel
 pypdf
+fastapi
+uvicorn
+python-dotenv
+python-multipart
+PyMuPDF
+structlog
+docx2txt
+streamlit
+pytest
 
+cfn-lint
 
 -e .
