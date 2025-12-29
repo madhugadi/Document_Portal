@@ -3,6 +3,9 @@ langchain
 langchain-community
 langchain-core
 
+sentence-transformers
+faiss-cpu
+
 langchain-groq
 langchain-google-genai
 python-dotenv
