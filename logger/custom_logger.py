@@ -11,20 +11,22 @@ class CustomLogger:
     - Docker containers
     - Kubernetes / AWS EKS
 
-    Key idea:
-    - Logs are emitted as JSON to stdout (required by Kubernetes)
+    Key principles:
+    - JSON logs to stdout (K8s / CloudWatch compatible)
     - Optional file logging for local debugging
+    - Logger & handlers configured ONCE per process
     """
 
+    _configured = False
+    _run_id = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
+
     def __init__(self, log_dir="logs"):
-        # Create a logs directory (useful locally; ignored by EKS)
         self.logs_dir = os.path.join(os.getcwd(), log_dir)
         os.makedirs(self.logs_dir, exist_ok=True)
 
-        # Create a timestamp-based log file name
-        # Each run gets a new file
-        log_file = f"{datetime.now().strftime('%m_%d_%Y_%H_%M_%S')}.log"
-        self.log_file_path = os.path.join(self.logs_dir, log_file)
+        self.log_file_path = os.path.join(
+            self.logs_dir, f"{CustomLogger._run_id}.log"
+        )
 
     def get_logger(self, name=__file__):
         """
@@ -34,67 +36,62 @@ class CustomLogger:
         :return: Structlog logger instance
         """
 
-        # Use file name as logger name (helps identify source module)
         logger_name = os.path.basename(name)
 
         # -------------------------
-        # Standard logging handlers
+        # Configure logging ONCE
         # -------------------------
+        if not CustomLogger._configured:
+            # File handler (local debugging)
+            file_handler = logging.FileHandler(self.log_file_path)
+            file_handler.setLevel(logging.INFO)
+            file_handler.setFormatter(logging.Formatter("%(message)s"))
 
-        # File handler → writes raw JSON logs to file (local debugging)
-        file_handler = logging.FileHandler(self.log_file_path)
-        file_handler.setLevel(logging.INFO)
+            # Console handler (stdout for K8s / Docker)
+            console_handler = logging.StreamHandler()
+            console_handler.setLevel(logging.INFO)
+            console_handler.setFormatter(logging.Formatter("%(message)s"))
 
-        # IMPORTANT:
-        # %(message)s ensures we print ONLY the JSON produced by structlog
-        file_handler.setFormatter(logging.Formatter("%(message)s"))
+            root_logger = logging.getLogger()
+            root_logger.setLevel(logging.INFO)
 
-        # Console handler → logs to stdout
-        # Kubernetes / EKS ONLY reads stdout/stderr
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(logging.Formatter("%(message)s"))
+            # 🔥 CRITICAL: remove any existing handlers
+            root_logger.handlers.clear()
 
-        # Configure Python's standard logging ONCE
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(message)s",  # structlog renders JSON
-            handlers=[console_handler, file_handler],
-        )
+            root_logger.addHandler(console_handler)
+            root_logger.addHandler(file_handler)
+
+            # Prevent log propagation creating duplicate / empty files
+            root_logger.propagate = False
+
+            CustomLogger._configured = True
 
         # -------------------------
         # Structlog configuration
         # -------------------------
-
         structlog.configure(
             processors=[
-                # Add ISO-8601 timestamp in UTC
                 structlog.processors.TimeStamper(
                     fmt="iso", utc=True, key="timestamp"
                 ),
-
-                # Add log level field (info, error, etc.)
                 structlog.processors.add_log_level,
-
-                # Rename default "event" key for clarity
                 structlog.processors.EventRenamer(to="event"),
-
-                # Render everything as JSON (final output)
                 structlog.processors.JSONRenderer(),
             ],
-
-            # Use standard logging underneath
             logger_factory=structlog.stdlib.LoggerFactory(),
-
-            # Cache logger for performance
             cache_logger_on_first_use=True,
         )
 
-        # Return a structlog logger
         return structlog.get_logger(logger_name)
 
 
-# Local test: run this file directly to verify logger
+# -------------------------
+# Local test
+# -------------------------
 if __name__ == "__main__":
     logger = CustomLogger().get_logger(__file__)
-    logger.info("Logger initialized successfully", environment="local")
+    logger.info(
+        "Logger initialized successfully",
+        environment="local",
+        service="document-portal",
+    )
