@@ -48,7 +48,7 @@ class DocumentComparatorLLM:
         except Exception as e:
             # Wrap initialization failures in a custom exception
             raise DocumentPortalException(
-                "Failed to initialize DocumentComparatorLLM", e
+                "Failed to initialize DocumentComparatorLLM", sys
             ) from e
 
     def compare_documents(self, document_text: str) -> pd.DataFrame:
@@ -76,7 +76,7 @@ class DocumentComparatorLLM:
         except Exception as e:
             # Wrap runtime errors in a custom exception
             raise DocumentPortalException(
-                "Error during document comparison", e
+                "Error during document comparison", sys
             ) from e
 
     def _format_response(self, response_parsed: list[dict]) -> pd.DataFrame:

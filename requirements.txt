@@ -15,6 +15,7 @@ structlog==25.4.0
 docx2txt==0.9
 ipykernel==6.30.0
 streamlit==1.47.1
+langchain-core[tracing]
 pytest==8.4.1
 pypdf==5.8.0
 cfn-lint

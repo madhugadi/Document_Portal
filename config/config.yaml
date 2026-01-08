@@ -2,8 +2,14 @@ faiss_db:
   collection_name: "document_portal"
 
 embedding_model:
-  provider: "sentence_transformer"
-  model_name: "all-MiniLM-L6-v2"
+  active_provider: "huggingface"
+
+  providers:
+    huggingface:
+      model_name: "sentence-transformers/all-MiniLM-L6-v2"
+
+    google:
+      model_name: "models/embedding-001"
 
 retriever:
   top_k: 10
