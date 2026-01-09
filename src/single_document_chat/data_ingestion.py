@@ -1,4 +1,3 @@
-import uuid
 import sys
 from pathlib import Path
 from datetime import datetime, timezone
@@ -13,18 +12,31 @@ from utils.model_loader import ModelLoader
 
 
 class SingleDocIngestor:
+    """
+    Ingestion logic for single document chat.
+
+    STRUCTURE (same as document_compare):
+
+    data/single_document_chat/
+    ├── sample.pdf                # input PDFs (immutable, root-level)
+    ├── another.pdf
+    ├── session_YYYYMMDD_HHMMSS/  # session folders (runtime artifacts)
+    ├── session_YYYYMMDD_HHMMSS/
+    """
+
     def __init__(
         self,
-        data_dir: str = "data/single/document_chat",
+        data_dir: str = "data/single_document_chat",
         faiss_dir: str = "faiss_index"
     ):
         try:
             self.log = CustomLogger.get_logger(__name__)
 
-            self.data_dir = Path(data_dir)
+            # Canonical, normalized path (prevents Windows duplicates)
+            self.data_dir = Path(data_dir).resolve()
             self.data_dir.mkdir(parents=True, exist_ok=True)
 
-            self.faiss_dir = Path(faiss_dir)
+            self.faiss_dir = Path(faiss_dir).resolve()
             self.faiss_dir.mkdir(parents=True, exist_ok=True)
 
             self.model_loader = ModelLoader()
@@ -45,40 +57,50 @@ class SingleDocIngestor:
                 sys
             )
 
-    def ingest_files(self, uploaded_files):
+    def ingest_files(self, pdf_filenames: list[str]):
         """
-        uploaded_files: iterable of file-like objects (e.g. Streamlit uploads)
+        pdf_filenames:
+            List of PDF filenames that already exist in `data/single_document_chat`.
+
+        IMPORTANT:
+        - PDFs are NOT copied
+        - PDFs are NOT renamed
+        - Sessions are directories only
         """
         try:
             documents = []
 
-            for uploaded_file in uploaded_files:
-                unique_filename = (
-                    f"session_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}_"
-                    f"{uuid.uuid4().hex}.pdf"
-                )
-                temp_path = self.data_dir / unique_filename
-
-                with open(temp_path, "wb") as f:
-                    f.write(uploaded_file.read())
-
-                self.log.info(
-                    "File saved",
-                    filename=uploaded_file.name,
-                    path=str(temp_path)
-                )
-
-                loader = PyPDFLoader(str(temp_path))
-                docs = loader.load()
-                documents.extend(docs)
-
-            if not documents:
-                raise ValueError("No documents loaded from uploaded files")
+            # 1️⃣ Create session folder (exactly like document_compare)
+            session_id = f"session_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+            session_dir = self.data_dir / session_id
+            session_dir.mkdir(parents=True, exist_ok=True)
 
             self.log.info(
-                "PDF files loaded",
-                count=len(documents)
+                "Session created",
+                session_id=session_id,
+                session_dir=str(session_dir)
             )
+
+            # 2️⃣ Load PDFs from ROOT (do NOT move or copy)
+            for filename in pdf_filenames:
+                pdf_path = self.data_dir / filename
+
+                if not pdf_path.exists():
+                    raise FileNotFoundError(
+                        f"PDF not found in single_document_chat root: {pdf_path}"
+                    )
+
+                self.log.info(
+                    "Loading PDF for ingestion",
+                    session_id=session_id,
+                    pdf=str(pdf_path)
+                )
+
+                loader = PyPDFLoader(str(pdf_path))
+                documents.extend(loader.load())
+
+            if not documents:
+                raise ValueError("No documents loaded from provided PDFs")
 
             return self._create_retriever(documents)
 
@@ -98,6 +120,7 @@ class SingleDocIngestor:
                 chunk_size=1000,
                 chunk_overlap=300
             )
+
             chunks = splitter.split_documents(documents)
 
             self.log.info(
@@ -125,7 +148,7 @@ class SingleDocIngestor:
             )
 
             self.log.info(
-                "Retriever created",
+                "Retriever created successfully",
                 retriever_type=str(type(retriever))
             )
 
