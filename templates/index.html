@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Document Portal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link href="/static/style.css" rel="stylesheet" />
+</head>
+
+<body>
+<header class="app-header">
+  <div class="brand">
+    <span class="logo">📚</span>
+    <h1>Document Portal</h1>
+  </div>
+  <nav class="mode-switch">
+    <button class="tab-btn active" data-tab="analysis" type="button">Document Analysis</button>
+    <button class="tab-btn" data-tab="compare" type="button">Document Compare</button>
+    <button class="tab-btn" data-tab="chat" type="button">Doc Chat</button>
+  </nav>
+</header>
+
+<main class="container">
+
+  <!-- ================= ANALYSIS ================= -->
+  <section id="tab-analysis" class="tab-panel active">
+    <div class="card">
+      <h2>🔎 Analyze a Document</h2>
+      <p class="muted">Upload a PDF and get structured analysis.</p>
+
+      <form id="form-analyze" class="form-grid">
+        <div class="field">
+          <label>Upload PDF</label>
+          <input id="an-file" type="file" accept=".pdf" required />
+          <small class="help">Only .pdf files</small>
+        </div>
+        <div class="actions">
+          <!-- ✅ FIX -->
+          <button id="btn-analyze" type="button" class="btn primary">
+            Run Analysis
+          </button>
+        </div>
+      </form>
+
+      <div id="an-result" class="result-block">
+        <h3>Result</h3>
+        <pre class="code" id="an-json">Waiting for analysis…</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= COMPARE ================= -->
+  <section id="tab-compare" class="tab-panel">
+    <div class="card">
+      <h2>🆚 Compare Two Documents</h2>
+      <p class="muted">Upload a reference PDF and an actual PDF.</p>
+
+      <form id="form-compare" class="form-grid-2">
+        <div class="field">
+          <label>Reference PDF</label>
+          <input id="cmp-ref" type="file" accept=".pdf" required />
+        </div>
+        <div class="field">
+          <label>Actual PDF</label>
+          <input id="cmp-act" type="file" accept=".pdf" required />
+        </div>
+        <div class="actions span-2">
+          <!-- ✅ FIX -->
+          <button id="btn-compare" type="button" class="btn primary">
+            Compare
+          </button>
+        </div>
+      </form>
+
+      <div class="result-block">
+        <h3>Comparison Result</h3>
+        <div class="table-wrap">
+          <table id="cmp-table">
+            <thead>
+              <tr><th>Page</th><th>Changes</th></tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="2" class="muted center">No data yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CHAT ================= -->
+  <section id="tab-chat" class="tab-panel">
+    <div class="card">
+      <h2>💬 Chat with your Documents</h2>
+
+      <form class="form-grid">
+        <div class="field">
+          <label>Upload files</label>
+          <input id="chat-files" type="file" multiple accept=".pdf,.docx,.txt" />
+        </div>
+
+        <div class="grid-3">
+          <div class="field">
+            <label>Session ID</label>
+            <input id="chat-session" type="text" />
+          </div>
+          <div class="field">
+            <label>Chunk size</label>
+            <input id="chat-chunk" type="number" value="1000" />
+          </div>
+          <div class="field">
+            <label>Overlap</label>
+            <input id="chat-overlap" type="number" value="200" />
+          </div>
+        </div>
+
+        <div class="actions">
+          <!-- ✅ FIX -->
+          <button id="btn-build" type="button" class="btn primary">
+            Build / Update Index
+          </button>
+        </div>
+      </form>
+
+      <div class="divider"></div>
+
+      <form class="form-grid">
+        <div class="field">
+          <label>Your Question</label>
+          <input id="chat-q" type="text" />
+        </div>
+        <div class="actions">
+          <!-- ✅ FIX -->
+          <button id="btn-ask" type="button" class="btn">
+            Send
+          </button>
+        </div>
+      </form>
+
+      <div id="chat-ans" class="result-block">
+        <h3>Answer</h3>
+        <div class="answer" id="chat-answer">No answer yet.</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="app-footer">
+  <div>© Document Portal • Demo UI</div>
+  <div class="tiny">Frontend hooked to FastAPI</div>
+</footer>
+
+<!-- 🔹 YOUR ORIGINAL SCRIPT (UNCHANGED) -->
+<script>
+  const API_BASE = "";
+
+  const tabs = document.querySelectorAll(".tab-btn");
+  const panels = document.querySelectorAll(".tab-panel");
+
+  tabs.forEach(btn => {
+    btn.addEventListener("click", () => {
+      tabs.forEach(b => b.classList.remove("active"));
+      panels.forEach(p => p.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+    });
+  });
+
+  // --- ANALYZE ---
+  document.getElementById("btn-analyze").addEventListener("click", async () => {
+    const file = document.getElementById("an-file").files[0];
+    const out = document.getElementById("an-json");
+    if (!file) return;
+
+    const fd = new FormData();
+    fd.append("file", file);
+
+    try {
+      const res = await fetch(`${API_BASE}/analyze`, { method: "POST", body: fd });
+      const json = await res.json();
+      out.textContent = JSON.stringify(json, null, 2);
+    } catch (e) {
+      out.textContent = "Error: " + e.message;
+    }
+  });
+</script>
+
+</body>
+</html>

@@ -15,7 +15,8 @@ class DocumentAnalyzer:
 
     def __init__(self):
         try:
-            self.log = CustomLogger().get_logger(__name__)
+            self.log = CustomLogger(__name__).get_logger()
+
 
             self.loader = ModelLoader()
             self.llm = self.loader.load_llm()
@@ -45,7 +46,8 @@ class DocumentAnalyzer:
             self.log.info("Document analysis chain created")
 
             response = chain.invoke({
-                "document_text": document_text
+                "document_text": document_text,
+                "format_instructions": self.parser.get_format_instructions()
             })
 
             self.log.info(

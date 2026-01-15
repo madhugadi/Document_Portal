@@ -11,3 +11,5 @@ venv/
 *.egg-info/
 *.egg
 *.log
+archive/
+notebooks/

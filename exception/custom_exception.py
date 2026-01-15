@@ -1,11 +1,12 @@
 import sys
 import traceback
+from typing import Optional, cast
 from types import ModuleType
 
-# Import centralized custom logger
+# Import centralized custom logger (kept for backward compatibility)
 from logger.custom_logger import CustomLogger
 
-# Initialize logger for this module
+# Initialize logger for this module (unchanged)
 logger = CustomLogger().get_logger(__file__)
 
 
@@ -13,67 +14,101 @@ class DocumentPortalException(Exception):
     """
     Custom exception class for the Document Portal application.
 
-    Purpose:
-    - Wraps original exceptions
-    - Captures file name and line number
-    - Preserves full traceback
-    - Produces clean, structured logs
+    Industry-grade characteristics:
+    - Flexible constructor (message or exception)
+    - Accurate root-cause traceback extraction
+    - Preserves exception chaining
+    - Logger- and API-friendly formatting
     """
 
-    def __init__(self, error_message: Exception, error_details: ModuleType):
+    def __init__(
+        self,
+        error_message: object,
+        error_details: Optional[object] = None,
+    ):
         """
-        Initialize the custom exception.
-
-        :param error_message: Original exception object
-        :param error_details: sys module (used to extract traceback info)
+        :param error_message: Exception or custom error message
+        :param error_details: sys module, Exception object, or None
         """
 
-        # Initialize base Exception with readable error message
-        super().__init__(str(error_message))
+        # Normalize message
+        if isinstance(error_message, BaseException):
+            normalized_message = str(error_message)
+        else:
+            normalized_message = str(error_message)
 
-        # Extract exception type, value, and traceback
-        _, _, exc_tb = error_details.exc_info()
+        # Resolve exc_info safely
+        exc_type = exc_value = exc_tb = None
 
-        # Default values (defensive fallback)
-        self.file_name = "Unknown"
+        if error_details is None:
+            exc_type, exc_value, exc_tb = sys.exc_info()
+
+        elif isinstance(error_details, ModuleType) and hasattr(error_details, "exc_info"):
+            exc_info_obj = cast(ModuleType, error_details)
+            exc_type, exc_value, exc_tb = exc_info_obj.exc_info()
+
+        elif isinstance(error_details, BaseException):
+            exc_type = type(error_details)
+            exc_value = error_details
+            exc_tb = error_details.__traceback__
+
+        else:
+            exc_type, exc_value, exc_tb = sys.exc_info()
+
+        # Walk to the deepest traceback frame (root cause)
+        last_tb = exc_tb
+        while last_tb and last_tb.tb_next:
+            last_tb = last_tb.tb_next
+
+        # Defensive defaults
+        self.file_name = "<unknown>"
         self.lineno = -1
 
-        # If traceback exists, extract file name and line number
-        if exc_tb is not None:
-            self.file_name = exc_tb.tb_frame.f_code.co_filename
-            self.lineno = exc_tb.tb_lineno
+        if last_tb and last_tb.tb_frame:
+            self.file_name = last_tb.tb_frame.f_code.co_filename
+            self.lineno = last_tb.tb_lineno
 
-        # Store string version of the error message
-        self.error_message = str(error_message)
+        self.error_message = normalized_message
 
-        # Capture full traceback as a formatted string
-        self.traceback_str = "".join(
-            traceback.format_exception(*error_details.exc_info())
-        )
+        # Full traceback (optional)
+        if exc_type and exc_tb:
+            self.traceback_str = "".join(
+                traceback.format_exception(exc_type, exc_value, exc_tb)
+            )
+        else:
+            self.traceback_str = ""
+
+        super().__init__(self.__str__())
 
     def __str__(self) -> str:
         """
-        Controls how the exception is rendered as a string.
-        This representation is used when logging or printing the exception.
+        Compact, production-safe string representation.
+        Suitable for logs, APIs, and monitoring tools.
         """
+        base_msg = (
+            f"Error in [{self.file_name}] at line [{self.lineno}] | "
+            f"Message: {self.error_message}"
+        )
+
+        if self.traceback_str:
+            return f"{base_msg}\nTraceback:\n{self.traceback_str}"
+
+        return base_msg
+
+    def __repr__(self) -> str:
         return (
-            f"\nError in file [{self.file_name}] at line [{self.lineno}]\n"
-            f"Message: {self.error_message}\n"
-            f"Traceback:\n{self.traceback_str}"
+            "DocumentPortalException("
+            f"file={self.file_name!r}, "
+            f"line={self.lineno}, "
+            f"message={self.error_message!r})"
         )
 
 
-# Standalone test block
+# Standalone test block (unchanged usage)
 if __name__ == "__main__":
     try:
-        # Intentionally raise an exception for testing
         a = 1 / 0
     except Exception as e:
-        # Wrap original exception with custom exception
         app_exc = DocumentPortalException(e, sys)
-
-        # Log structured exception
         logger.error(app_exc)
-
-        # Re-raise while preserving original traceback
         raise app_exc from e
