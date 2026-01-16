@@ -1,18 +1,16 @@
 from __future__ import annotations
-
 from pathlib import Path
 from typing import Iterable, List
-
-from fastapi import UploadFile
+from fastapi import FastAPI,UploadFile
 from langchain.schema import Document
 from langchain_community.document_loaders import (
     PyPDFLoader,
     Docx2txtLoader,
     TextLoader,
 )
-
 from logger.custom_logger import CustomLogger
 from exception.custom_exception import DocumentPortalException
+from src.document_ingestion.data_ingestion import DocHandler
 
 # -------------------------------------------------------------------
 # FIX 1: Logger was never initialized → NameError at runtime
@@ -132,51 +130,38 @@ def concat_for_comparison(
 # ============================================================
 # FastAPI Helpers
 # ============================================================
+
+
+
 class FastAPIFileAdapter:
     """
-    Adapter to normalize FastAPI UploadFile to a
-    `.name + .getbuffer()` interface.
-
-    WHY:
-    - Reuse existing file-saving logic
-    - Avoid branching everywhere for FastAPI vs non-FastAPI uploads
+    Adapter that converts FastAPI UploadFile into
+    a standard file-like interface expected by
+    ingestion and comparison logic.
     """
 
-    def __init__(self, uf: UploadFile):
-        self._uf = uf
-
-        # FIX:
-        # UploadFile exposes `filename`, not `name`
-        self.name = uf.filename
+    def __init__(self, file: UploadFile):
+        self.uf = file
+        self.name = file.filename
 
     def getbuffer(self) -> bytes:
-        """
-        Return full file contents as bytes.
+        self.uf.file.seek(0)
+        return self.uf.file.read()
 
-        FIX:
-        - Always seek to beginning before reading
-        """
-        self._uf.file.seek(0)
-        return self._uf.file.read()
+    def read(self, size: int = -1) -> bytes:
+        return self.uf.file.read(size)
 
 
 # ============================================================
 # DocHandler Compatibility Helper
 # ============================================================
-def read_pdf_via_handler(handler, path: str) -> str:
+def _read_pdf_via_handler(handler: DocHandler, path: str) -> str:
     """
-    Read PDF via handler while remaining backward-compatible.
-
-    WHY:
-    - Supports multiple handler implementations
-    - Avoids tight coupling
+    Reads a PDF using the document handler abstraction
+    and returns extracted text.
     """
-    if hasattr(handler, "read_pdf"):
-        return handler.read_pdf(path)  # type: ignore
-
-    if hasattr(handler, "read_"):
-        return handler.read_(path)  # type: ignore
-
-    raise RuntimeError(
-        "DocHandler has neither read_pdf nor read_ method."
-    )
+    try:
+        return handler.read_pdf(path)
+    except Exception as e:
+        log.error("Failed to read PDF via handler", error=str(e))
+        raise

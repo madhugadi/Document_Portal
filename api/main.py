@@ -25,6 +25,8 @@ from src.document_analyzer.data_analysis import DocumentAnalyzer
 from src.document_compare.document_comparator import DocumentComparatorLLM
 from src.document_chat.retrieval import ConversationalRAG
 
+from utils.document_ops import FastAPIFileAdapter,_read_pdf_via_handler
+
 from logger.custom_logger import CustomLogger
 from pathlib import Path
 
@@ -61,40 +63,6 @@ app.mount(
 
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
-
-# ------------------ #
-# Utility Classes    #
-# ------------------ #
-
-class FastAPIFileAdapter:
-    """
-    Adapter that converts FastAPI UploadFile into
-    a standard file-like interface expected by
-    ingestion and comparison logic.
-    """
-
-    def __init__(self, file: UploadFile):
-        self.uf = file
-        self.name = file.filename
-
-    def getbuffer(self) -> bytes:
-        self.uf.file.seek(0)
-        return self.uf.file.read()
-
-    def read(self, size: int = -1) -> bytes:
-        return self.uf.file.read(size)
-
-
-def _read_pdf_via_handler(handler: DocHandler, path: str) -> str:
-    """
-    Reads a PDF using the document handler abstraction
-    and returns extracted text.
-    """
-    try:
-        return handler.read_pdf(path)
-    except Exception as e:
-        log.error("Failed to read PDF via handler", error=str(e))
-        raise
 
 
 # ------------------ #
