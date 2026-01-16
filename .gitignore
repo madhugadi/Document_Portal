@@ -13,3 +13,4 @@ venv/
 *.log
 archive/
 notebooks/
+data/
