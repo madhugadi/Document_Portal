@@ -1,11 +1,13 @@
 name: CI/CD to ECS Fargate
+
 on:
   workflow_run:
-    workflows: ["Run Unit Tests"]   # Match the name in your ci.yaml
+    workflows: ["Run Unit Tests"]
     types:
       - completed
+
 env:
-  AWS_REGION: us-southeast-2
+  AWS_REGION: us-east-2
   ECR_REPOSITORY: documentportalliveclass
   ECS_SERVICE: document-portal-service
   ECS_CLUSTER: document-portal-cluster
@@ -19,7 +21,7 @@ permissions:
 jobs:
   check-status:
     runs-on: ubuntu-latest
-    if: ${{github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'}}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
     steps:
       - name: CI passed on main branch
         run: echo "CI passed on main branch, proceeding to build and deploy."
@@ -54,8 +56,9 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
+          set -e
           IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+          echo "IMAGE_URI=$IMAGE_URI"
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
           echo "image=$IMAGE_URI" >> $GITHUB_OUTPUT
@@ -85,8 +88,10 @@ jobs:
           task-definition: ${{ env.ECS_TASK_DEFINITION }}
           container-name: ${{ env.CONTAINER_NAME }}
           image: ${{ needs.build-and-push.outputs.image }}
+
       - name: Print Rendered Task
         run: cat ${{ steps.render-task.outputs.task-definition }}
+
       - name: Deploy to ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
@@ -94,5 +99,6 @@ jobs:
           service: ${{ env.ECS_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
+
       - name: Done!
         run: echo "Deployed to ECS Fargate Successfully"
