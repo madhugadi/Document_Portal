@@ -19,4 +19,4 @@ langchain-core[tracing]
 pytest==8.4.1
 pypdf==5.8.0
 cfn-lint
--e .
+
