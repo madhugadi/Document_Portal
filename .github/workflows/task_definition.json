@@ -10,7 +10,6 @@
       "name": "document-portal-container",
       "image": "619071324395.dkr.ecr.us-east-2.amazonaws.com/documentportalliveclass",
       "essential": true,
-
       "portMappings": [
         {
           "containerPort": 8000,
@@ -18,14 +17,16 @@
           "appProtocol": "http"
         }
       ],
-
       "environment": [
+        {
+          "name": "ENV",
+          "value": "production"
+        },
         {
           "name": "LANGCHAIN_PROJECT",
           "value": "DOCUMENT PORTAL"
         }
       ],
-
       "secrets": [
         {
           "name": "GROQ_API_KEY",
@@ -36,7 +37,6 @@
           "valueFrom": "arn:aws:secretsmanager:us-east-2:619071324395:secret:apikeys-l3d6aO"
         }
       ],
-
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
