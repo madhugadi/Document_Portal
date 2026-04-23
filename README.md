@@ -28,3 +28,23 @@ git commit -m "<write your commit message>"
 # Push to remote (after adding remote origin)
 git push
 
+
+An intelligent document platform enabling users to upload, analyze, compare, and chat with PDFs using grounded multi-document reasoning.
+
+🔍 Key Features
+RAG-based document understanding using FAISS vector store
+Multi-document comparison and contextual Q&A
+Async FastAPI backend with:
+Structured logging
+Custom exception handling
+CI/CD pipeline using GitHub Actions
+Fully containerized and deployed on AWS ECS (Fargate)
+🏗️ Architecture Highlights
+Secure secrets management with AWS Secrets Manager
+Load balancing via Application Load Balancer (ALB)
+Least-privilege IAM roles for secure access
+Streamlit-based interactive UI
+🧰 Tech Stack
+
+Python · FastAPI · Docker · LLMs · RAG · FAISS · AWS ECS (Fargate) · Amazon ECR · ALB · AWS Secrets Manager · CloudWatch · GitHub Actions · Streamlit
+
